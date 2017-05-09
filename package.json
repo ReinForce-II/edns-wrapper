@@ -1,0 +1,11 @@
+{
+    "name": "DNS-Wrapper",
+    "version": "0.0.1",
+    "private": true,
+    "dependencies": {
+        "dnsd": "0.9.6",
+        "request": "",
+        "minimist": "",
+        "insubnet": ""
+    }
+}
