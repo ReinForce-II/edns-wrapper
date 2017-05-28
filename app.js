@@ -3,8 +3,9 @@ var request = require('request');
 var insubnet = require('insubnet');
 var argv = require('minimist')(process.argv.slice(2));
 var fs = require('fs')
-  , Log = require('log')
-  , log = new Log('info', fs.createWriteStream('/var/log/edns-wrapper.log'));
+    , Log = require('log')
+    , log = new Log('info', fs.createWriteStream('/var/log/edns-wrapper.log'));
+var μs = require('microseconds');
 var saddr = '0.0.0.0';
 var sport = 3535;
 if (argv['h'] === true || argv['help'] === true) {
@@ -67,9 +68,9 @@ server.listen(sport, saddr);
 console.log(`Server running at ${saddr}:${sport}`);
 
 function handler(req, res) {
-    log.info('%s:%s/%s %s/%s', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type);
+    var tstart = μs.now();
     var question = res.question[0];
-    request(`https://dns.google.com/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${req.connection.remoteAddress}/24`, function(error, response, body) {
+    request(`https://dns.google.com/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${req.connection.remoteAddress}/24`, function (error, response, body) {
         if (error) {
             res.end();
             return;
@@ -88,7 +89,7 @@ function handler(req, res) {
             res.end();
             return;
         }
-        obody.Answer.forEach(function(ele) {
+        obody.Answer.forEach(function (ele) {
             var otype = typelist[ele.type];
             if (otype === undefined) {
                 return;
@@ -131,5 +132,6 @@ function handler(req, res) {
             res.answer.push({ name: ele.name, type: otype, data: ele.data, 'ttl': ele.ttl });
         });
         res.end();
+        log.info('%s:%s/%s %s/%s %sms', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, (μs.now() - tstart).toString());
     });
 }
