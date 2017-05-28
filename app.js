@@ -132,6 +132,6 @@ function handler(req, res) {
             res.answer.push({ name: ele.name, type: otype, data: ele.data, 'ttl': ele.ttl });
         });
         res.end();
-        log.info('%s:%s/%s %s/%s %sms', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, (μs.now() - tstart).toString());
+        log.info('%s:%s/%s %s/%s %sms', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, Math.floor(((μs.now() - tstart) / 1000)).toString());
     });
 }
