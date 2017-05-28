@@ -2,6 +2,9 @@ var dnsd = require('dnsd');
 var request = require('request');
 var insubnet = require('insubnet');
 var argv = require('minimist')(process.argv.slice(2));
+var fs = require('fs')
+  , Log = require('log')
+  , log = new Log('info', fs.createWriteStream('/var/log/edns-wrapper.log'));
 var saddr = '0.0.0.0';
 var sport = 3535;
 if (argv['h'] === true || argv['help'] === true) {
@@ -64,7 +67,7 @@ server.listen(sport, saddr);
 console.log(`Server running at ${saddr}:${sport}`);
 
 function handler(req, res) {
-    console.log('%s:%s/%s %j', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, req);
+    log.info('%s:%s/%s %s/%s', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type);
     var question = res.question[0];
     request(`https://dns.google.com/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${req.connection.remoteAddress}/24`, function(error, response, body) {
         if (error) {

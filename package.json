@@ -6,6 +6,8 @@
         "dnsd": "0.9.6",
         "request": "",
         "minimist": "",
-        "insubnet": ""
+        "insubnet": "",
+        "log": "",
+        "fs": ""
     }
 }
