@@ -13,6 +13,7 @@ if (argv['h'] === true || argv['help'] === true) {
     console.log('Usage: node[js] app.js [-l <addr>] [-p <port>] [-d <queryhost>]');
     console.log('Default Port: 3535');
     console.log('Default Address: 0.0.0.0');
+    console.log('Default Queryhost: dns.google.com');
     return;
 }
 if (argv['l'] && /^(?!0)(?!.*\.$)((1?\d?\d|25[0-5]|2[0-4]\d)(\.|$)){4}$/.test(argv['l'])) {
