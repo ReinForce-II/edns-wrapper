@@ -6,6 +6,7 @@ var fs = require('fs')
     , Log = require('log')
     , log = new Log('info', fs.createWriteStream('/var/log/edns-wrapper.log'));
 var μs = require('microseconds');
+var cache = require('memory-cache');
 var saddr = '0.0.0.0';
 var sport = 3535;
 var queryhost = 'dns.google.com';
@@ -75,68 +76,80 @@ console.log(`Server running at ${saddr}:${sport}`);
 function handler(req, res) {
     var tstart = μs.now();
     var question = res.question[0];
-    request(`https://${queryhost}/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${req.connection.remoteAddress}/24`, function (error, response, body) {
-        if (error) {
-            res.end();
-            return;
-        }
-        var obody;
-        try {
-            obody = JSON.parse(body);
-            if (!(obody && typeof obody === "object")) {
-                throw ('Parse Error');
-            }
-        } catch (err) {
-            res.end();
-            return;
-        }
-        if (!obody['Answer']) {
-            res.end();
-            return;
-        }
-        obody.Answer.forEach(function (ele) {
-            var otype = typelist[ele.type];
-            if (otype === undefined) {
+    var ocache = cache.get(`${question.type}${question.name}${req.connection.remoteAddress}`);
+    if (ocache === null) {
+        request(`https://${queryhost}/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${req.connection.remoteAddress}/24`, function (error, response, body) {
+            if (error) {
+                res.end();
                 return;
             }
-            if (otype !== 'A' && otype !== 'AAAA' && otype !== 'MX' && otype !== 'SOA' && otype !== 'NS' && otype !== 'PTR' && otype !== 'CNAME' && otype !== 'TXT' && otype !== 'SRV' && otype !== 'DS') {
+            var obody;
+            try {
+                obody = JSON.parse(body);
+                if (!(obody && typeof obody === "object")) {
+                    throw ('Parse Error');
+                }
+            } catch (err) {
+                res.end();
                 return;
             }
-            if (otype === 'AAAA') {
-                ele.data = insubnet.Expand(ele.data);
-            } else if (otype === 'MX') {
-                ele.data = ele.data.split(' ');
-            } else if (otype === 'SOA') {
-                var tmp = ele.data.split(' ');
-                ele.data = {
-                    mname: tmp[0],
-                    rname: tmp[1],
-                    serial: tmp[2],
-                    refresh: tmp[3],
-                    retry: tmp[4],
-                    expire: tmp[5],
-                    ttl: tmp[6]
-                };
-            } else if (otype === 'SRV') {
-                var tmp = ele.data.split(' ');
-                ele.data = {
-                    priority: tmp[0],
-                    weight: tmp[1],
-                    port: tmp[2],
-                    target: tmp[3]
-                };
-            } else if (otype === 'DS') {
-                var tmp = ele.data.split(' ');
-                ele.data = {
-                    key_tag: tmp[0],
-                    algorithm: tmp[1],
-                    digest_type: tmp[2],
-                    digest: new Buffer(tmp[3], 'hex')
-                };
+            if (!obody['Answer']) {
+                res.end();
+                return;
             }
-            res.answer.push({ name: ele.name, type: otype, data: ele.data, 'ttl': ele.ttl });
+            obody.Answer.forEach(function (ele) {
+                var otype = typelist[ele.type];
+                if (otype === undefined) {
+                    return;
+                }
+                if (otype !== 'A' && otype !== 'AAAA' && otype !== 'MX' && otype !== 'SOA' && otype !== 'NS' && otype !== 'PTR' && otype !== 'CNAME' && otype !== 'TXT' && otype !== 'SRV' && otype !== 'DS') {
+                    return;
+                }
+                if (otype === 'AAAA') {
+                    ele.data = insubnet.Expand(ele.data);
+                } else if (otype === 'MX') {
+                    ele.data = ele.data.split(' ');
+                } else if (otype === 'SOA') {
+                    var tmp = ele.data.split(' ');
+                    ele.data = {
+                        mname: tmp[0],
+                        rname: tmp[1],
+                        serial: tmp[2],
+                        refresh: tmp[3],
+                        retry: tmp[4],
+                        expire: tmp[5],
+                        ttl: tmp[6]
+                    };
+                } else if (otype === 'SRV') {
+                    var tmp = ele.data.split(' ');
+                    ele.data = {
+                        priority: tmp[0],
+                        weight: tmp[1],
+                        port: tmp[2],
+                        target: tmp[3]
+                    };
+                } else if (otype === 'DS') {
+                    var tmp = ele.data.split(' ');
+                    ele.data = {
+                        key_tag: tmp[0],
+                        algorithm: tmp[1],
+                        digest_type: tmp[2],
+                        digest: new Buffer(tmp[3], 'hex')
+                    };
+                }
+                res.answer.push({ name: ele.name, type: otype, data: ele.data, 'ttl': ele.ttl });
+                cache.put(`${question.type}${question.name}${req.connection.remoteAddress}`, JSON.stringify({ name: ele.name, type: otype, data: ele.data, 'ttl': ele.ttl }), 1000 * ele.ttl);
+            });
+            res.end();
+            log.info('%s:%s/%s %s/%s %sms', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, Math.floor(((μs.now() - tstart) / 1000)).toString());
         });
-        res.end();
-        log.info('%s:%s/%s %s/%s %sms', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, Math.floor(((μs.now() - tstart) / 1000)).toString());
-    });
+    } else {
+        try {
+            res.answer.push(JSON.parse(ocache));
+            res.end();
+            log.info('%s:%s/%s %s/%s %sms', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, Math.floor(((μs.now() - tstart) / 1000)).toString());
+        } catch (e) {
+
+        }
+    }
 }

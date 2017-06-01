@@ -9,6 +9,7 @@
         "insubnet": "",
         "log": "",
         "fs": "",
-        "microseconds": ""
+        "microseconds": "",
+        "memory-cache": ""
     }
 }
