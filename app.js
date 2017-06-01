@@ -8,8 +8,9 @@ var fs = require('fs')
 var μs = require('microseconds');
 var saddr = '0.0.0.0';
 var sport = 3535;
+var queryhost = 'dns.google.com';
 if (argv['h'] === true || argv['help'] === true) {
-    console.log('Usage: node[js] app.js [-l <addr>] [-p <port>]');
+    console.log('Usage: node[js] app.js [-l <addr>] [-p <port>] [-d <queryhost>]');
     console.log('Default Port: 3535');
     console.log('Default Address: 0.0.0.0');
     return;
@@ -19,6 +20,9 @@ if (argv['l'] && /^(?!0)(?!.*\.$)((1?\d?\d|25[0-5]|2[0-4]\d)(\.|$)){4}$/.test(ar
 }
 if (argv['p'] && /^\d+$/.test(argv['p'])) {
     sport = argv['p'];
+}
+if (argv['d'] && /^[\w\.\-:]+$/.test(argv['d'])) {
+    queryhost = argv['d'];
 }
 var typelist = {
     1: 'A',
@@ -70,7 +74,7 @@ console.log(`Server running at ${saddr}:${sport}`);
 function handler(req, res) {
     var tstart = μs.now();
     var question = res.question[0];
-    request(`https://dns.google.com/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${req.connection.remoteAddress}/24`, function (error, response, body) {
+    request(`https://${queryhost}/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${req.connection.remoteAddress}/24`, function (error, response, body) {
         if (error) {
             res.end();
             return;
