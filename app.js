@@ -10,11 +10,13 @@ var cache = require('memory-cache');
 var saddr = '0.0.0.0';
 var sport = 3535;
 var queryhost = 'dns.google.com';
+var tcache = 600000;
 if (argv['h'] === true || argv['help'] === true) {
-    console.log('Usage: node[js] app.js [-l <addr>] [-p <port>] [-d <queryhost>]');
+    console.log('Usage: node[js] app.js [-l <addr>] [-p <port>] [-d <queryhost>] [-t <cachetime(ms)>]');
     console.log('Default Port: 3535');
     console.log('Default Address: 0.0.0.0');
     console.log('Default Queryhost: dns.google.com');
+    console.log('Default Cache Time: 600000');
     return;
 }
 if (argv['l'] && /^(?!0)(?!.*\.$)((1?\d?\d|25[0-5]|2[0-4]\d)(\.|$)){4}$/.test(argv['l'])) {
@@ -25,6 +27,9 @@ if (argv['p'] && /^\d+$/.test(argv['p'])) {
 }
 if (argv['d'] && /^[\w\.\-:]+$/.test(argv['d'])) {
     queryhost = argv['d'];
+}
+if (argv['t'] && /^\d+$/.test(argv['t'])) {
+    tcache = argv['t'];
 }
 var typelist = {
     1: 'A',
@@ -138,18 +143,14 @@ function handler(req, res) {
                     };
                 }
                 res.answer.push({ name: ele.name, type: otype, data: ele.data, 'ttl': ele.ttl });
-                cache.put(`${question.type}${question.name}${req.connection.remoteAddress}`, JSON.stringify({ name: ele.name, type: otype, data: ele.data, 'ttl': ele.ttl }), 1000 * parseInt(ele.ttl));
             });
-            res.end();
-            log.info('%s:%s/%s %s/%s %sms cache', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, Math.floor(((μs.now() - tstart) / 1000)).toString());
-        });
-    } else {
-        try {
-            res.answer.push(JSON.parse(ocache));
+            cache.put(`${question.type}${question.name}${req.connection.remoteAddress}`, JSON.stringify(res.answer), tcache);
             res.end();
             log.info('%s:%s/%s %s/%s %sms', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, Math.floor(((μs.now() - tstart) / 1000)).toString());
-        } catch (e) {
-
-        }
+        });
+    } else {
+        res.answer = JSON.parse(ocache);
+        res.end();
+        log.info('%s:%s/%s %s/%s %sms cache', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, Math.floor(((μs.now() - tstart) / 1000)).toString());
     }
 }
