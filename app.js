@@ -9,6 +9,8 @@ var μs = require('microseconds');
 var cache = require('memory-cache');
 var ip = require('ip');
 var dns = require('native-dns');
+var os = require('os'),
+    ifaces = os.networkInterfaces();
 var saddr = '0.0.0.0';
 var sport = 3535;
 var queryhost = 'dns.google.com';
@@ -77,8 +79,6 @@ var typelist = {
     41: 'OPT'
 };
 
-
-var server;
 dns.platform.name_servers = [
     { address: '8.8.8.8', port: 53 },
     { address: '8.8.4.4', port: 53 },
@@ -110,10 +110,23 @@ function getqhost() {
                 fs.writeFileSync('/etc/hosts', chosts, 'utf-8');
 
                 getlocaladdr();
-
-                server = dnsd.createServer(handler);
-                server.listen(sport, saddr);
-                console.log(`Server running at ${saddr}:${sport}`);
+                if (saddr === '0.0.0.0') {
+                    Object.keys(ifaces).forEach(function (ifname) {
+                        ifaces[ifname].forEach(function (iface) {
+                            if ('IPv4' !== iface.family || iface.internal !== false) {
+                                // skip over internal (i.e. 127.0.0.1) and non-ipv4 addresses
+                                return;
+                            }
+                            var server = dnsd.createServer(handler);
+                            server.listen(sport, iface.address);
+                            console.log(`Server running at ${iface.address}:${sport}`);
+                        });
+                    });
+                } else {
+                    var server = dnsd.createServer(handler);
+                    server.listen(sport, saddr);
+                    console.log(`Server running at ${saddr}:${sport}`);
+                }
             } catch (e) {
                 console.log('Edit /etc/hosts failed.');
                 return;
@@ -166,14 +179,18 @@ function handler(req, res) {
                     throw ('Parse Error');
                 }
             } catch (err) {
-                res.answer.push({ name: 'example.com', type: 'A', data: '0.0.0.0', 'ttl': 0 });
+                res.answer.push({ name: 'example.com', type: 'A', data: '0.0.0.1', 'ttl': 0 });
                 res.end();
                 return;
             }
             if (!obody['Answer']) {
-                res.answer.push({ name: 'example.com', type: 'A', data: '0.0.0.0', 'ttl': 0 });
-                res.end();
-                return;
+                if (obody['Authority'].length > 0) {
+                    obody.Answer = obody.Authority;
+                } else {
+                    res.answer.push({ name: 'example.com', type: 'A', data: '0.0.0.2', 'ttl': 0 });
+                    res.end();
+                    return;
+                }
             }
             obody.Answer.forEach(function (ele) {
                 var otype = typelist[ele.type];
