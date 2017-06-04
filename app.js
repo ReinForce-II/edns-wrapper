@@ -77,7 +77,7 @@ var typelist = {
 };
 
 var localaddr = '127.0.0.1';
-var server;
+
 request({
     url: 'https://ipinfo.io',
     gzip: true
@@ -89,14 +89,15 @@ request({
     try {
         localaddr = JSON.parse(body).ip;
         console.log(`Local address is ${localaddr}`);
-        server = dnsd.createServer(handler);
-        server.listen(sport, saddr);
-        console.log(`Server running at ${saddr}:${sport}`);
     } catch (e) {
         console.log("Get local ip address failed.");
         return;
     }
 });
+
+var server = dnsd.createServer(handler);
+server.listen(sport, saddr);
+console.log(`Server running at ${saddr}:${sport}`);
 
 function handler(req, res) {
     var tstart = μs.now();
