@@ -168,7 +168,6 @@ function handler(req, res) {
             gzip: true
         }, function (error, response, body) {
             if (error) {
-                res.answer.push({ name: 'example.com', type: 'A', data: '0.0.0.0', 'ttl': 0 });
                 res.end();
                 return;
             }
@@ -179,15 +178,13 @@ function handler(req, res) {
                     throw ('Parse Error');
                 }
             } catch (err) {
-                res.answer.push({ name: 'example.com', type: 'A', data: '0.0.0.1', 'ttl': 0 });
                 res.end();
                 return;
             }
             if (!obody['Answer']) {
-                if (obody['Authority'].length > 0) {
+                if (body['Authority'] && obody['Authority'].length > 0) {
                     obody.Answer = obody.Authority;
                 } else {
-                    res.answer.push({ name: 'example.com', type: 'A', data: '0.0.0.2', 'ttl': 0 });
                     res.end();
                     return;
                 }
