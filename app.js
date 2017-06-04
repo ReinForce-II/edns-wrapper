@@ -8,7 +8,6 @@ var fs = require('fs')
 var μs = require('microseconds');
 var cache = require('memory-cache');
 var ip = require('ip');
-var dns = require('dns');
 var saddr = '0.0.0.0';
 var sport = 3535;
 var queryhost = 'dns.google.com';
@@ -76,7 +75,6 @@ var typelist = {
     251: 'IXFR',
     41: 'OPT'
 };
-dns.setServers(['8.8.8.8', '8.8.4.4', '114.114.114.114', '119.29.29.29']);
 var localaddr = '127.0.0.1';
 request({
     url: 'https://ipinfo.io',
