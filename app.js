@@ -17,7 +17,7 @@ if (argv['h'] === true || argv['help'] === true) {
     console.log('Usage: node[js] app.js [-l <addr>] [-p <port>] [-d <queryhost>] [-t <cachetime(ms)>]');
     console.log('Default Port: 3535');
     console.log('Default Address: 0.0.0.0');
-    console.log('Default Queryhost: dns.google.com  *If you make edns-wrapper as default dns server, you must put your queryhost into hosts');
+    console.log('Default Queryhost: dns.google.com');
     console.log('Default Cache Time: 600000');
     return;
 }
