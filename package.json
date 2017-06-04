@@ -10,6 +10,7 @@
         "log": "",
         "fs": "",
         "microseconds": "",
-        "memory-cache": ""
+        "memory-cache": "",
+        "ip": ""
     }
 }

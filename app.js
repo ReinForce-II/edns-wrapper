@@ -7,6 +7,7 @@ var fs = require('fs')
     , log = new Log('info', fs.createWriteStream('/var/log/edns-wrapper.log'));
 var μs = require('microseconds');
 var cache = require('memory-cache');
+var ip = require('ip');
 var saddr = '0.0.0.0';
 var sport = 3535;
 var queryhost = 'dns.google.com';
@@ -74,6 +75,19 @@ var typelist = {
     251: 'IXFR',
     41: 'OPT'
 };
+var localaddr = '127.0.0.1';
+request('https://ipinfo.io', function (error, response, body) {
+    if (error) {
+        console.log("Get local ip address failed.");
+        return;
+    }
+    try {
+        localaddr = JSON.parse(body).ip;
+    } catch (e) {
+        console.log("Get local ip address failed.");
+        return;
+    }
+});
 var server = dnsd.createServer(handler);
 server.listen(sport, saddr);
 console.log(`Server running at ${saddr}:${sport}`);
@@ -83,7 +97,8 @@ function handler(req, res) {
     var question = res.question[0];
     var ocache = cache.get(`${question.type}${question.name}${req.connection.remoteAddress}`);
     if (ocache === null) {
-        request(`https://${queryhost}/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${req.connection.remoteAddress}/24`, function (error, response, body) {
+        var remoteaddr = ip.isPrivate(req.connection.remoteAddress) ? localaddr : req.connection.remoteAddress;
+        request(`https://${queryhost}/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${remoteaddr}/24`, function (error, response, body) {
             if (error) {
                 res.end();
                 return;
