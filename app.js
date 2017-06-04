@@ -83,7 +83,8 @@ exports.defaultTimeout = 1000;
 var localaddr = '127.0.0.1';
 request({
     url: 'https://ipinfo.io',
-    gzip: true
+    gzip: true,
+    timeout: 1000
 }, function (error, response, body) {
     if (error) {
         console.log("Get local ip address failed.");
@@ -109,7 +110,8 @@ function handler(req, res) {
         var remoteaddr = ip.isPrivate(req.connection.remoteAddress) ? localaddr : req.connection.remoteAddress;
         request({
             url: `https://${queryhost}/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${remoteaddr}/24`,
-            gzip: true
+            gzip: true,
+            timeout: 1000
         }, function (error, response, body) {
             if (error) {
                 console.log(error);
