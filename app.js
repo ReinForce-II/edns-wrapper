@@ -8,7 +8,7 @@ var fs = require('fs')
 var μs = require('microseconds');
 var cache = require('memory-cache');
 var ip = require('ip');
-var dns = require('failover-dns');
+var dns = require('native-dns');
 var saddr = '0.0.0.0';
 var sport = 3535;
 var queryhost = 'dns.google.com';
@@ -77,14 +77,13 @@ var typelist = {
     41: 'OPT'
 };
 
-dns.on('error', err => console.error(err));
-exports.defaultTimeout = 1000;
+dns.platform.name_servers = ['8.8.8.8', '8.8.4.4', '114.114.114.114', '119.29.29.29'];
 
 var localaddr = '127.0.0.1';
+var server;
 request({
     url: 'https://ipinfo.io',
-    gzip: true,
-    timeout: 1000
+    gzip: true
 }, function (error, response, body) {
     if (error) {
         console.log("Get local ip address failed.");
@@ -93,14 +92,14 @@ request({
     try {
         localaddr = JSON.parse(body).ip;
         console.log(`Local address is ${localaddr}`);
+        server = dnsd.createServer(handler);
+        server.listen(sport, saddr);
+        console.log(`Server running at ${saddr}:${sport}`);
     } catch (e) {
         console.log("Get local ip address failed.");
         return;
     }
 });
-var server = dnsd.createServer(handler);
-server.listen(sport, saddr);
-console.log(`Server running at ${saddr}:${sport}`);
 
 function handler(req, res) {
     var tstart = μs.now();
@@ -114,7 +113,7 @@ function handler(req, res) {
             timeout: 1000
         }, function (error, response, body) {
             if (error) {
-                console.log(error);
+                res.answer.push({ name: 'example.com', type: 'A', data: '0.0.0.0', 'ttl': 0 });
                 res.end();
                 return;
             }
@@ -125,10 +124,12 @@ function handler(req, res) {
                     throw ('Parse Error');
                 }
             } catch (err) {
+                res.answer.push({ name: 'example.com', type: 'A', data: '0.0.0.0', 'ttl': 0 });
                 res.end();
                 return;
             }
             if (!obody['Answer']) {
+                res.answer.push({ name: 'example.com', type: 'A', data: '0.0.0.0', 'ttl': 0 });
                 res.end();
                 return;
             }

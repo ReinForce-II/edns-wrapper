@@ -12,6 +12,6 @@
         "microseconds": "",
         "memory-cache": "",
         "ip": "",
-        "failover-dns": ""
+        "native-dns": ""
     }
 }
