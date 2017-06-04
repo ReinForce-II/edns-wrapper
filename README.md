@@ -13,7 +13,7 @@ node[js] app.js [-l <addr>] [-p <port>] [-d <queryhost>] [-t <cachetime(ms)>]
 
 * Default address: 0.0.0.0
 * Default Port: 3535
-* Default Queryhost: dns.google.com
+* Default Queryhost: dns.google.com *If you make edns-wrapper as default dns server, you must put your queryhost into hosts
 * Default Cache Time: 600000
 
 ## Dependencies

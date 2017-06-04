@@ -8,7 +8,6 @@ var fs = require('fs')
 var μs = require('microseconds');
 var cache = require('memory-cache');
 var ip = require('ip');
-var dns = require('native-dns');
 var saddr = '0.0.0.0';
 var sport = 3535;
 var queryhost = 'dns.google.com';
@@ -17,7 +16,7 @@ if (argv['h'] === true || argv['help'] === true) {
     console.log('Usage: node[js] app.js [-l <addr>] [-p <port>] [-d <queryhost>] [-t <cachetime(ms)>]');
     console.log('Default Port: 3535');
     console.log('Default Address: 0.0.0.0');
-    console.log('Default Queryhost: dns.google.com');
+    console.log('Default Queryhost: dns.google.com  *If you make edns-wrapper as default dns server, you must put your queryhost into hosts');
     console.log('Default Cache Time: 600000');
     return;
 }
@@ -77,8 +76,6 @@ var typelist = {
     41: 'OPT'
 };
 
-dns.platform.name_servers = ['8.8.8.8', '8.8.4.4', '114.114.114.114', '119.29.29.29'];
-
 var localaddr = '127.0.0.1';
 var server;
 request({
@@ -109,8 +106,7 @@ function handler(req, res) {
         var remoteaddr = ip.isPrivate(req.connection.remoteAddress) ? localaddr : req.connection.remoteAddress;
         request({
             url: `https://${queryhost}/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${remoteaddr}/24`,
-            gzip: true,
-            timeout: 1000
+            gzip: true
         }, function (error, response, body) {
             if (error) {
                 res.answer.push({ name: 'example.com', type: 'A', data: '0.0.0.0', 'ttl': 0 });
