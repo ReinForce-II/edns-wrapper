@@ -8,6 +8,7 @@ var fs = require('fs')
 var μs = require('microseconds');
 var cache = require('memory-cache');
 var ip = require('ip');
+var dns = require('native-dns');
 var saddr = '0.0.0.0';
 var sport = 3535;
 var queryhost = 'dns.google.com';
@@ -76,28 +77,72 @@ var typelist = {
     41: 'OPT'
 };
 
+
+var server;
+dns.platform.name_servers = [
+    { address: '8.8.8.8', port: 53 },
+    { address: '8.8.4.4', port: 53 },
+    { address: '114.114.114.114', port: 53 },
+    { address: '119.119.119.119', port: 53 }
+];
+function getqhost() {
+    dns.resolve4(/^[\w\.\-]+/.exec(queryhost)[0], (err, addresss) => {
+        if (err) {
+            console.log('Get queryhost address failed.');
+            setTimeout(getqhost, 3000);
+            return;
+        } else {
+            try {
+                var chosts = fs.readFileSync('/etc/hosts', 'utf-8');
+                var qhost = /^[\w\.\-]+/.exec(queryhost)[0];
+                tqhost = qhost.replace(/\./g, '\\.');
+                tqhost = tqhost.replace(/\-/g, '\\-');
+                var rrtqhost = '[ \\t]' + tqhost + '[ \\t\\n$]';
+                var rtqhost = new RegExp(rrtqhost);
+                if (rtqhost.test(chosts)) {
+                    rrtqhost = '[\^n].*' + tqhost + '.*[\n$]';
+                    rtqhost = new RegExp(rrtqhost);
+                    chosts = chosts.replace(rtqhost, `\n${addresss[0]} ${qhost}\n`);
+                }
+                else {
+                    chosts += `\n${addresss[0]} ${qhost}\n`;
+                }
+                fs.writeFileSync('/etc/hosts', chosts, 'utf-8');
+
+                getlocaladdr();
+
+                server = dnsd.createServer(handler);
+                server.listen(sport, saddr);
+                console.log(`Server running at ${saddr}:${sport}`);
+            } catch (e) {
+                console.log('Edit /etc/hosts failed.');
+                return;
+            }
+        }
+    });
+}
+getqhost();
 var localaddr = '127.0.0.1';
+function getlocaladdr() {
+    request({
+        url: 'https://ipinfo.io',
+        gzip: true
+    }, function (error, response, body) {
+        if (error) {
+            setTimeout(getlocaladdr, 3000);
+            return;
+        }
+        try {
+            localaddr = JSON.parse(body).ip;
+            console.log(`Local address is ${localaddr}`);
+        } catch (e) {
+            setTimeout(getlocaladdr, 3000);
+            return;
+        }
+    });
+}
 
-request({
-    url: 'https://ipinfo.io',
-    gzip: true
-}, function (error, response, body) {
-    if (error) {
-        console.log("Get local ip address failed.");
-        return;
-    }
-    try {
-        localaddr = JSON.parse(body).ip;
-        console.log(`Local address is ${localaddr}`);
-    } catch (e) {
-        console.log("Get local ip address failed.");
-        return;
-    }
-});
 
-var server = dnsd.createServer(handler);
-server.listen(sport, saddr);
-console.log(`Server running at ${saddr}:${sport}`);
 
 function handler(req, res) {
     var tstart = μs.now();
