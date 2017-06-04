@@ -3,7 +3,7 @@
     "version": "0.0.1",
     "private": true,
     "dependencies": {
-        "dnsd": "0.9.6",
+        "dnsd": "",
         "request": "",
         "minimist": "",
         "insubnet": "",
@@ -11,6 +11,7 @@
         "fs": "",
         "microseconds": "",
         "memory-cache": "",
-        "ip": ""
+        "ip": "",
+        "dns": ""
     }
 }

@@ -8,6 +8,7 @@ var fs = require('fs')
 var μs = require('microseconds');
 var cache = require('memory-cache');
 var ip = require('ip');
+var dns = require('dns');
 var saddr = '0.0.0.0';
 var sport = 3535;
 var queryhost = 'dns.google.com';
@@ -75,8 +76,12 @@ var typelist = {
     251: 'IXFR',
     41: 'OPT'
 };
+dns.setServers(['8.8.8.8', '8.8.4.4', '114.114.114.114', '119.29.29.29']);
 var localaddr = '127.0.0.1';
-request('https://ipinfo.io', function (error, response, body) {
+request({
+    url: 'https://ipinfo.io',
+    gzip: true
+}, function (error, response, body) {
     if (error) {
         console.log("Get local ip address failed.");
         return;
@@ -99,7 +104,10 @@ function handler(req, res) {
     var ocache = cache.get(`${question.type}${question.name}${req.connection.remoteAddress}`);
     if (ocache === null) {
         var remoteaddr = ip.isPrivate(req.connection.remoteAddress) ? localaddr : req.connection.remoteAddress;
-        request(`https://${queryhost}/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${remoteaddr}/24`, function (error, response, body) {
+        request({
+            url: `https://${queryhost}/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${remoteaddr}/24`,
+            gzip: true
+        }, function (error, response, body) {
             if (error) {
                 res.end();
                 return;
