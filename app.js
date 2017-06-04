@@ -8,6 +8,7 @@ var fs = require('fs')
 var μs = require('microseconds');
 var cache = require('memory-cache');
 var ip = require('ip');
+var dns = require('failover-dns');
 var saddr = '0.0.0.0';
 var sport = 3535;
 var queryhost = 'dns.google.com';
@@ -75,11 +76,14 @@ var typelist = {
     251: 'IXFR',
     41: 'OPT'
 };
+
+dns.on('error', err => console.error(err));
+exports.defaultTimeout = 1000;
+
 var localaddr = '127.0.0.1';
 request({
     url: 'https://ipinfo.io',
-    gzip: true,
-    timeout: 1000
+    gzip: true
 }, function (error, response, body) {
     if (error) {
         console.log("Get local ip address failed.");
@@ -105,8 +109,7 @@ function handler(req, res) {
         var remoteaddr = ip.isPrivate(req.connection.remoteAddress) ? localaddr : req.connection.remoteAddress;
         request({
             url: `https://${queryhost}/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${remoteaddr}/24`,
-            gzip: true,
-            timeout: 1000
+            gzip: true
         }, function (error, response, body) {
             if (error) {
                 console.log(error);

@@ -11,6 +11,7 @@
         "fs": "",
         "microseconds": "",
         "memory-cache": "",
-        "ip": ""
+        "ip": "",
+        "failover-dns": ""
     }
 }
