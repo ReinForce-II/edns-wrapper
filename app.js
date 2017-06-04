@@ -83,6 +83,7 @@ request('https://ipinfo.io', function (error, response, body) {
     }
     try {
         localaddr = JSON.parse(body).ip;
+        console.log(`Local address is ${localaddr}`);
     } catch (e) {
         console.log("Get local ip address failed.");
         return;
@@ -91,7 +92,6 @@ request('https://ipinfo.io', function (error, response, body) {
 var server = dnsd.createServer(handler);
 server.listen(sport, saddr);
 console.log(`Server running at ${saddr}:${sport}`);
-console.log(`Local address is ${localaddr}`);
 
 function handler(req, res) {
     var tstart = μs.now();
