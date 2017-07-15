@@ -231,7 +231,9 @@ function handler(req, res) {
                 }
                 res.answer.push({ name: ele.name, type: otype, data: ele.data, 'ttl': ele.ttl });
             });
-            cache.put(`${question.type}${question.name}${req.connection.remoteAddress}`, JSON.stringify(res.answer), tcache);
+            if (localaddr !== '127.0.0.1') {
+                cache.put(`${question.type}${question.name}${req.connection.remoteAddress}`, JSON.stringify(res.answer), tcache);
+            }
             res.end();
             log.info('%s:%s/%s %s/%s %sms', remoteaddr, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, Math.floor(((μs.now() - tstart) / 1000)).toString());
         });
