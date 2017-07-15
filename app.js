@@ -162,7 +162,7 @@ function handler(req, res) {
     var question = res.question[0];
     var ocache = cache.get(`${question.type}${question.name}${req.connection.remoteAddress}`);
     if (ocache === null) {
-        var remoteaddr = ip.isPrivate(req.connection.remoteAddress) || ip.cidrSubnet('192.168.0.0/16').contains(req.connection.remoteAddress) ? localaddr : req.connection.remoteAddress;
+        var remoteaddr = ip.isPrivate(req.connection.remoteAddress) || ip.cidrSubnet('10.0.0.0/8').contains(req.connection.remoteAddress) || ip.cidrSubnet('100.64.0.0/10').contains(req.connection.remoteAddress) || ip.cidrSubnet('169.254.0.0/16').contains(req.connection.remoteAddress) || ip.cidrSubnet('172.16.0.0/12').contains(req.connection.remoteAddress) || ip.cidrSubnet('192.168.0.0/16').contains(req.connection.remoteAddress) ? localaddr : req.connection.remoteAddress;
         request({
             url: `https://${queryhost}/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${remoteaddr}/24`,
             gzip: true

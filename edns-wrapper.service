@@ -1,0 +1,14 @@
+[Unit]
+Description=edns wrapper
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/node /opt/edns-wrapper/app.js -t 3600000
+KillMode=process
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
