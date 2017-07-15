@@ -149,6 +149,8 @@ function getlocaladdr() {
     }, function (error, response, body) {
         if (error) {
             setTimeout(getlocaladdr, 3000);
+            console.log(`Get local address failed, retry after 3000ms`);
+            plog.info(`Get local address failed, retry after 3000ms`);
             return;
         }
         try {
@@ -157,6 +159,8 @@ function getlocaladdr() {
             plog.info(`Local address is ${localaddr}`);
         } catch (e) {
             setTimeout(getlocaladdr, 3000);
+            console.log(`Get local address failed, retry after 3000ms`);
+            plog.info(`Get local address failed, retry after 3000ms`);
             return;
         }
     });
