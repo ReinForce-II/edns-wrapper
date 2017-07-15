@@ -4,7 +4,8 @@ var insubnet = require('insubnet');
 var argv = require('minimist')(process.argv.slice(2));
 var fs = require('fs')
     , Log = require('log')
-    , log = new Log('info', fs.createWriteStream('/var/log/edns-wrapper.log', { flags: 'a' }));
+    , log = new Log('info', fs.createWriteStream('/var/log/edns-wrapper.log', { flags: 'a' }))
+    , plog = new Log('info', fs.createWriteStream('/var/log/edns-wrapper-p.log', { flags: 'a' }));
 var μs = require('microseconds');
 var cache = require('memory-cache');
 var ip = require('ip');
@@ -89,6 +90,7 @@ function getqhost() {
     dns.resolve4(/^[\w\.\-]+/.exec(queryhost)[0], (err, addresss) => {
         if (err) {
             console.log('Get queryhost address failed.');
+            plog.info('Get queryhost address failed.');
             setTimeout(getqhost, 3000);
             return;
         } else {
@@ -120,15 +122,18 @@ function getqhost() {
                             var server = dnsd.createServer(handler);
                             server.listen(sport, iface.address);
                             console.log(`Server running at ${iface.address}:${sport}`);
+                            plog.info(`Server running at ${iface.address}:${sport}`);
                         });
                     });
                 } else {
                     var server = dnsd.createServer(handler);
                     server.listen(sport, saddr);
                     console.log(`Server running at ${saddr}:${sport}`);
+                    plog.info(`Server running at ${saddr}:${sport}`);
                 }
             } catch (e) {
                 console.log('Edit /etc/hosts failed.');
+                plog.info('Edit /etc/hosts failed.');
                 return;
             }
         }
@@ -148,6 +153,7 @@ function getlocaladdr() {
         try {
             localaddr = JSON.parse(body).ip;
             console.log(`Local address is ${localaddr}`);
+            plog.info(`Local address is ${localaddr}`);
         } catch (e) {
             setTimeout(getlocaladdr, 3000);
             return;
