@@ -144,7 +144,8 @@ var localaddr = '127.0.0.1';
 function getlocaladdr() {
     request({
         url: 'https://ipinfo.io',
-        gzip: true
+        gzip: true,
+        timeout: 5000
     }, function (error, response, body) {
         if (error) {
             setTimeout(getlocaladdr, 3000);
