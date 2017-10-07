@@ -2,10 +2,6 @@ var dnsd = require('dnsd');
 var request = require('request');
 var insubnet = require('insubnet');
 var argv = require('minimist')(process.argv.slice(2));
-var fs = require('fs')
-    , Log = require('log')
-    , log = new Log('info', fs.createWriteStream('/var/log/edns-wrapper.log', { flags: 'a' }))
-    , plog = new Log('info', fs.createWriteStream('/var/log/edns-wrapper-p.log', { flags: 'a' }));
 var μs = require('microseconds');
 var cache = require('memory-cache');
 var ip = require('ip');
@@ -41,6 +37,10 @@ if (argv['t'] && /^\d+$/.test(argv['t'])) {
 if (argv['D']) {
     log_query = true;
 }
+var fs = require('fs')
+    , Log = require('log')
+    , log = new Log('info', fs.createWriteStream(`/var/log/edns-wrapper-${sport}.log`, { flags: 'a' }))
+    , plog = new Log('info', fs.createWriteStream(`/var/log/edns-wrapper-p-${sport}.log`, { flags: 'a' }));
 var typelist = {
     1: 'A',
     28: 'AAAA',
