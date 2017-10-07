@@ -148,7 +148,7 @@ getqhost();
 var localaddr = '127.0.0.1';
 function getlocaladdr() {
     request({
-        url: 'https://api.ipify.org?format=json',
+        url: 'http://209.58.164.148/json',  /* http://ip-api.com/json 209.58.164.148 209.58.164.112 */
         gzip: true,
         timeout: 5000
     }, function (error, response, body) {
@@ -159,7 +159,7 @@ function getlocaladdr() {
             return;
         }
         try {
-            localaddr = JSON.parse(body).ip;
+            localaddr = JSON.parse(body).query;
             console.log(`Local address is ${localaddr}`);
             plog.info(`Local address is ${localaddr}`);
         } catch (e) {
