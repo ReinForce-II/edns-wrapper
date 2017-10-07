@@ -148,7 +148,7 @@ getqhost();
 var localaddr = '127.0.0.1';
 function getlocaladdr() {
     request({
-        url: 'https://ipinfo.io',
+        url: 'https://api.ipify.org?format=json',
         gzip: true,
         timeout: 5000
     }, function (error, response, body) {
