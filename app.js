@@ -185,6 +185,7 @@ function handler(req, res) {
         }, function (error, response, body) {
             if (error) {
                 res.end();
+                log.info('[Failed] %s:%s/%s %s/%s error', remoteaddr, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type);
                 return;
             }
             var obody;
