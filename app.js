@@ -19,8 +19,8 @@ if (argv['h'] === true || argv['help'] === true) {
     console.log('Default Address: 0.0.0.0');
     console.log('Default Queryhost: dns.google.com');
     console.log('Default Cache Time: 600000');
-    console.log('Default No Log Query')
-    return;
+    console.log('Default No Log Query');
+    process.exit();
 }
 if (argv['l'] && /^(?!0)(?!.*\.$)((1?\d?\d|25[0-5]|2[0-4]\d)(\.|$)){4}$/.test(argv['l'])) {
     saddr = argv['l'];
