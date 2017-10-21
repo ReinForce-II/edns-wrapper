@@ -9,7 +9,7 @@ var dns = require('native-dns');
 var os = require('os'),
     ifaces = os.networkInterfaces();
 var saddr = '0.0.0.0';
-var sport = 3535;
+var sport = [ 3535 ];
 var queryhost = 'dns.google.com';
 var tcache = 600000;
 var log_query = false;
@@ -25,8 +25,11 @@ if (argv['h'] === true || argv['help'] === true) {
 if (argv['l'] && /^(?!0)(?!.*\.$)((1?\d?\d|25[0-5]|2[0-4]\d)(\.|$)){4}$/.test(argv['l'])) {
     saddr = argv['l'];
 }
-if (argv['p'] && /^\d+$/.test(argv['p'])) {
-    sport = argv['p'];
+if ((typeof argv['p']) === 'number') {	
+    sport = [argv['p']];
+}
+else if ((typeof argv['p']) === 'object') {
+	sport = argv['p'];
 }
 if (argv['d'] && /^[\w\.\-:]+$/.test(argv['d'])) {
     queryhost = argv['d'];
@@ -39,8 +42,8 @@ if (argv['D']) {
 }
 var fs = require('fs')
     , Log = require('log')
-    , log = new Log('info', fs.createWriteStream(`/var/log/edns-wrapper-${sport}.log`, { flags: 'a' }))
-    , plog = new Log('info', fs.createWriteStream(`/var/log/edns-wrapper-p-${sport}.log`, { flags: 'a' }));
+    , log = new Log('info', fs.createWriteStream(`/var/log/edns-wrapper.log`, { flags: 'a' }))
+    , plog = new Log('info', fs.createWriteStream(`/var/log/edns-wrapper.p.log`, { flags: 'a' }));
 var typelist = {
     1: 'A',
     28: 'AAAA',
@@ -125,16 +128,20 @@ function getqhost() {
                                 return;
                             }
                             var server = dnsd.createServer(handler);
-                            server.listen(sport, iface.address);
-                            console.log(`Server running at ${iface.address}:${sport}`);
-                            plog.info(`Server running at ${iface.address}:${sport}`);
+                            sport.forEach((port) => {
+								server.listen(port, iface.address);
+								console.log(`Server running at ${iface.address}:${port}`);
+								plog.info(`Server running at ${iface.address}:${port}`);
+                            });
                         });
                     });
                 } else {
                     var server = dnsd.createServer(handler);
-                    server.listen(sport, saddr);
-                    console.log(`Server running at ${saddr}:${sport}`);
-                    plog.info(`Server running at ${saddr}:${sport}`);
+                    sport.forEach((port) => {
+						server.listen(port, saddr);
+						console.log(`Server running at ${saddr}:${port}`);
+						plog.info(`Server running at ${saddr}:${port}`);
+                    });
                 }
             } catch (e) {
                 console.log('Edit /etc/hosts failed.');
