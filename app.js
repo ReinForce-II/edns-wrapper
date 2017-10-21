@@ -127,8 +127,8 @@ function getqhost() {
                                 // skip over non-ipv4 addresses
                                 return;
                             }
-                            var server = dnsd.createServer(handler);
                             sport.forEach((port) => {
+								var server = dnsd.createServer(handler);
 								server.listen(port, iface.address);
 								console.log(`Server running at ${iface.address}:${port}`);
 								plog.info(`Server running at ${iface.address}:${port}`);
@@ -136,8 +136,8 @@ function getqhost() {
                         });
                     });
                 } else {
-                    var server = dnsd.createServer(handler);
                     sport.forEach((port) => {
+						var server = dnsd.createServer(handler);
 						server.listen(port, saddr);
 						console.log(`Server running at ${saddr}:${port}`);
 						plog.info(`Server running at ${saddr}:${port}`);
