@@ -1,5 +1,5 @@
 {
-    "name": "DNS-Wrapper",
+    "name": "dns-wrapper",
     "version": "0.1.0",
     "private": true,
     "dependencies": {
