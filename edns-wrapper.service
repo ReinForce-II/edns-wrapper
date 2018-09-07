@@ -5,6 +5,7 @@ Wants=network.target
 
 [Service]
 Type=simple
+Environment="NODE_ENV=production"
 ExecStart=/usr/bin/node /opt/edns-wrapper/app.js -t 3600000
 KillMode=process
 Restart=always
