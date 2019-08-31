@@ -7,10 +7,10 @@
         "request": "",
         "minimist": "",
         "insubnet": "",
-        "log": "",
+        "log4js": "",
         "fs": "",
         "microseconds": "",
-        "memory-cache": "",
+        "redis": "",
         "ip": "",
         "native-dns": ""
     }

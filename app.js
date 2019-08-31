@@ -3,13 +3,14 @@ var request = require('request');
 var insubnet = require('insubnet');
 var argv = require('minimist')(process.argv.slice(2));
 var μs = require('microseconds');
-var cache = require('memory-cache');
+var redis = require('redis'),
+    cache = redis.createClient();
 var ip = require('ip');
 var dns = require('native-dns');
 var os = require('os'),
     ifaces = os.networkInterfaces();
 var saddr = '0.0.0.0';
-var sport = [ 3535 ];
+var sport = [3535];
 var queryhost = 'dns.google.com';
 var tcache = 600000;
 var log_query = false;
@@ -25,11 +26,11 @@ if (argv['h'] === true || argv['help'] === true) {
 if (argv['l'] && /^(?!0)(?!.*\.$)((1?\d?\d|25[0-5]|2[0-4]\d)(\.|$)){4}$/.test(argv['l'])) {
     saddr = argv['l'];
 }
-if ((typeof argv['p']) === 'number') {	
+if ((typeof argv['p']) === 'number') {
     sport = [argv['p']];
 }
 else if ((typeof argv['p']) === 'object') {
-	sport = argv['p'];
+    sport = argv['p'];
 }
 if (argv['d'] && /^[\w\.\-:]+$/.test(argv['d'])) {
     queryhost = argv['d'];
@@ -40,10 +41,21 @@ if (argv['t'] && /^\d+$/.test(argv['t'])) {
 if (argv['D']) {
     log_query = true;
 }
-var fs = require('fs')
-    , Log = require('log')
-    , log = new Log('info', fs.createWriteStream(`/var/log/edns-wrapper.log`, { flags: 'a' }))
-    , plog = new Log('info', fs.createWriteStream(`/var/log/edns-wrapper.p.log`, { flags: 'a' }));
+var fs = require('fs');
+var log4js = require('log4js');
+log4js.configure({
+        appenders: {
+                    normal: { type: 'file', filename: '/var/log/edns-wrapper.log' },
+                    critical: { type: 'file', filename: '/var/log/edns-wrapper.p.log' }
+                },
+        categories: {
+                    normal: { appenders: ['normal'], level: 'info' },
+                    critical: { appenders: ['critical'], level: 'info' },
+                    default: { appenders: ['normal', 'critical'], level: 'info' }
+                }
+});
+var log = log4js.getLogger('normal');
+var plog = log4js.getLogger('critical');
 var typelist = {
     1: 'A',
     28: 'AAAA',
@@ -88,12 +100,18 @@ var typelist = {
     41: 'OPT'
 };
 
+cache.on('error', function (err) {
+    console.log('Error ' + err);
+    plog.info('Error ' + err);
+});
+
 dns.platform.name_servers = [
     { address: '8.8.8.8', port: 53 },
     { address: '8.8.4.4', port: 53 },
     { address: '114.114.114.114', port: 53 },
     { address: '119.119.119.119', port: 53 }
 ];
+
 function getqhost() {
     dns.resolve4(/^[\w\.\-]+/.exec(queryhost)[0], (err, addresss) => {
         if (err) {
@@ -128,24 +146,24 @@ function getqhost() {
                                 return;
                             }
                             sport.forEach((port) => {
-								var server = dnsd.createServer(handler);
-								server.listen(port, iface.address);
-								console.log(`Server running at ${iface.address}:${port}`);
-								plog.info(`Server running at ${iface.address}:${port}`);
+                                var server = dnsd.createServer(handler);
+                                server.listen(port, iface.address);
+                                console.log(`Server running at ${iface.address}:${port}`);
+                                plog.info(`Server running at ${iface.address}:${port}`);
                             });
                         });
                     });
                 } else {
                     sport.forEach((port) => {
-						var server = dnsd.createServer(handler);
-						server.listen(port, saddr);
-						console.log(`Server running at ${saddr}:${port}`);
-						plog.info(`Server running at ${saddr}:${port}`);
+                        var server = dnsd.createServer(handler);
+                        server.listen(port, saddr);
+                        console.log(`Server running at ${saddr}:${port}`);
+                        plog.info(`Server running at ${saddr}:${port}`);
                     });
                 }
             } catch (e) {
                 console.log('Edit /etc/hosts failed.');
-                plog.info('Edit /etc/hosts failed.');
+                // plog.info('Edit /etc/hosts failed.');
                 return;
             }
         }
@@ -155,7 +173,7 @@ getqhost();
 var localaddr = '127.0.0.1';
 function getlocaladdr() {
     request({
-        url: 'http://209.58.164.148/json',  /* http://ip-api.com/json 209.58.164.148 209.58.164.112 */
+        url: 'http://139.99.8.58/json',  /* http://ip-api.com/json 139.99.8.126 */
         gzip: true,
         timeout: 5000
     }, function (error, response, body) {
@@ -183,91 +201,93 @@ function getlocaladdr() {
 function handler(req, res) {
     var tstart = μs.now();
     var question = res.question[0];
-    var ocache = cache.get(`${question.type}${question.name}${req.connection.remoteAddress}`);
-    if (ocache === null) {
-        var remoteaddr = ip.isPrivate(req.connection.remoteAddress) || ip.cidrSubnet('10.0.0.0/8').contains(req.connection.remoteAddress) || ip.cidrSubnet('100.64.0.0/10').contains(req.connection.remoteAddress) || ip.cidrSubnet('169.254.0.0/16').contains(req.connection.remoteAddress) || ip.cidrSubnet('172.16.0.0/12').contains(req.connection.remoteAddress) || ip.cidrSubnet('192.168.0.0/16').contains(req.connection.remoteAddress) ? localaddr : req.connection.remoteAddress;
-        request({
-            url: `https://${queryhost}/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${remoteaddr}/24`,
-            gzip: true
-        }, function (error, response, body) {
-            if (error) {
-                res.end();
-                log.info('[Failed] %s:%s/%s %s/%s %s', remoteaddr, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, error);
-                return;
-            }
-            var obody;
-            try {
-                obody = JSON.parse(body);
-                if (!(obody && typeof obody === "object")) {
-                    throw ('Parse Error');
+    cache.get(`${question.type}${question.name}${req.connection.remoteAddress}`, (err, ocache) => {
+        if (ocache === null) {
+            var remoteaddr = ip.isPrivate(req.connection.remoteAddress) || ip.cidrSubnet('10.0.0.0/8').contains(req.connection.remoteAddress) || ip.cidrSubnet('100.64.0.0/10').contains(req.connection.remoteAddress) || ip.cidrSubnet('169.254.0.0/16').contains(req.connection.remoteAddress) || ip.cidrSubnet('172.16.0.0/12').contains(req.connection.remoteAddress) || ip.cidrSubnet('192.168.0.0/16').contains(req.connection.remoteAddress) ? localaddr : req.connection.remoteAddress;
+            request({
+                url: `https://${queryhost}/resolve?type=${question.type}&name=${question.name}&edns_client_subnet=${remoteaddr}/24`,
+                gzip: true
+            }, function (error, response, body) {
+                if (error) {
+                    res.end();
+                    log.info('[Failed] %s:%s/%s %s/%s %s', remoteaddr, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, error);
+                    return;
                 }
-            } catch (err) {
-                res.end();
-                return;
-            }
-            if (!obody['Answer']) {
-                if (body['Authority'] && obody['Authority'].length > 0) {
-                    obody.Answer = obody.Authority;
-                } else {
+                var obody;
+                try {
+                    obody = JSON.parse(body);
+                    if (!(obody && typeof obody === 'object')) {
+                        throw ('Parse Error');
+                    }
+                } catch (err) {
                     res.end();
                     return;
                 }
-            }
-            obody.Answer.forEach(function (ele) {
-                var otype = typelist[ele.type];
-                if (otype === undefined) {
-                    return;
+                if (!obody['Answer']) {
+                    if (body['Authority'] && obody['Authority'].length > 0) {
+                        obody.Answer = obody.Authority;
+                    } else {
+                        res.end();
+                        return;
+                    }
                 }
-                if (otype !== 'A' && otype !== 'AAAA' && otype !== 'MX' && otype !== 'SOA' && otype !== 'NS' && otype !== 'PTR' && otype !== 'CNAME' && otype !== 'TXT' && otype !== 'SRV' && otype !== 'DS') {
-                    return;
+                obody.Answer.forEach(function (ele) {
+                    var otype = typelist[ele.type];
+                    if (otype === undefined) {
+                        return;
+                    }
+                    if (otype !== 'A' && otype !== 'AAAA' && otype !== 'MX' && otype !== 'SOA' && otype !== 'NS' && otype !== 'PTR' && otype !== 'CNAME' && otype !== 'TXT' && otype !== 'SRV' && otype !== 'DS') {
+                        return;
+                    }
+                    if (otype === 'AAAA') {
+                        ele.data = insubnet.Expand(ele.data);
+                    } else if (otype === 'MX') {
+                        ele.data = ele.data.split(' ');
+                    } else if (otype === 'SOA') {
+                        var tmp = ele.data.split(' ');
+                        ele.data = {
+                            mname: tmp[0],
+                            rname: tmp[1],
+                            serial: tmp[2],
+                            refresh: tmp[3],
+                            retry: tmp[4],
+                            expire: tmp[5],
+                            ttl: tmp[6]
+                        };
+                    } else if (otype === 'SRV') {
+                        var tmp = ele.data.split(' ');
+                        ele.data = {
+                            priority: tmp[0],
+                            weight: tmp[1],
+                            port: tmp[2],
+                            target: tmp[3]
+                        };
+                    } else if (otype === 'DS') {
+                        var tmp = ele.data.split(' ');
+                        ele.data = {
+                            key_tag: tmp[0],
+                            algorithm: tmp[1],
+                            digest_type: tmp[2],
+                            digest: new Buffer(tmp[3], 'hex')
+                        };
+                    }
+                    res.answer.push({ name: ele.name, type: otype, data: ele.data, 'ttl': ele.ttl });
+                });
+                if (localaddr !== '127.0.0.1') {
+                    cache.set(`${question.type}${question.name}${req.connection.remoteAddress}`, JSON.stringify(res.answer), 'PX', tcache);
                 }
-                if (otype === 'AAAA') {
-                    ele.data = insubnet.Expand(ele.data);
-                } else if (otype === 'MX') {
-                    ele.data = ele.data.split(' ');
-                } else if (otype === 'SOA') {
-                    var tmp = ele.data.split(' ');
-                    ele.data = {
-                        mname: tmp[0],
-                        rname: tmp[1],
-                        serial: tmp[2],
-                        refresh: tmp[3],
-                        retry: tmp[4],
-                        expire: tmp[5],
-                        ttl: tmp[6]
-                    };
-                } else if (otype === 'SRV') {
-                    var tmp = ele.data.split(' ');
-                    ele.data = {
-                        priority: tmp[0],
-                        weight: tmp[1],
-                        port: tmp[2],
-                        target: tmp[3]
-                    };
-                } else if (otype === 'DS') {
-                    var tmp = ele.data.split(' ');
-                    ele.data = {
-                        key_tag: tmp[0],
-                        algorithm: tmp[1],
-                        digest_type: tmp[2],
-                        digest: new Buffer(tmp[3], 'hex')
-                    };
+                res.end();
+                if (log_query) {
+                    log.info('%s:%s/%s %s/%s %sms', remoteaddr, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, Math.floor(((μs.now() - tstart) / 1000)).toString());
                 }
-                res.answer.push({ name: ele.name, type: otype, data: ele.data, 'ttl': ele.ttl });
             });
-            if (localaddr !== '127.0.0.1') {
-                cache.put(`${question.type}${question.name}${req.connection.remoteAddress}`, JSON.stringify(res.answer), tcache);
-            }
+        } else {
+            res.answer = JSON.parse(ocache);
             res.end();
             if (log_query) {
-                log.info('%s:%s/%s %s/%s %sms', remoteaddr, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, Math.floor(((μs.now() - tstart) / 1000)).toString());
+                log.info('%s:%s/%s %s/%s %sms cache', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, Math.floor(((μs.now() - tstart) / 1000)).toString());
             }
-        });
-    } else {
-        res.answer = JSON.parse(ocache);
-        res.end();
-        if (log_query) {
-            log.info('%s:%s/%s %s/%s %sms cache', req.connection.remoteAddress, req.connection.remotePort, req.connection.type, res.question[0].name, res.question[0].type, Math.floor(((μs.now() - tstart) / 1000)).toString());
         }
-    }
+    });
 }
+
