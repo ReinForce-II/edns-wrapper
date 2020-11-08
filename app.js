@@ -44,15 +44,15 @@ if (argv['D']) {
 var fs = require('fs');
 var log4js = require('log4js');
 log4js.configure({
-        appenders: {
-                    normal: { type: 'file', filename: '/var/log/edns-wrapper.log' },
-                    critical: { type: 'file', filename: '/var/log/edns-wrapper.p.log' }
-                },
-        categories: {
-                    normal: { appenders: ['normal'], level: 'info' },
-                    critical: { appenders: ['critical'], level: 'info' },
-                    default: { appenders: ['normal', 'critical'], level: 'info' }
-                }
+    appenders: {
+        normal: { type: 'file', filename: '/var/log/edns-wrapper.log' },
+        critical: { type: 'file', filename: '/var/log/edns-wrapper.p.log' }
+    },
+    categories: {
+        normal: { appenders: ['normal'], level: 'info' },
+        critical: { appenders: ['critical'], level: 'info' },
+        default: { appenders: ['normal', 'critical'], level: 'info' }
+    }
 });
 var log = log4js.getLogger('normal');
 var plog = log4js.getLogger('critical');
@@ -121,21 +121,23 @@ function getqhost() {
             return;
         } else {
             try {
-                var chosts = fs.readFileSync('/etc/hosts', 'utf-8');
-                var qhost = /^[\w\.\-]+/.exec(queryhost)[0];
-                tqhost = qhost.replace(/\./g, '\\.');
-                tqhost = tqhost.replace(/\-/g, '\\-');
-                var rrtqhost = '[ \\t]' + tqhost + '[ \\t\\n$]';
-                var rtqhost = new RegExp(rrtqhost);
-                if (rtqhost.test(chosts)) {
-                    rrtqhost = '[\^n].*' + tqhost + '.*[\n$]';
-                    rtqhost = new RegExp(rrtqhost);
-                    chosts = chosts.replace(rtqhost, `\n${addresss[0]} ${qhost}\n`);
+                if (sport.includes(53)) {
+                    var chosts = fs.readFileSync('/etc/hosts', 'utf-8');
+                    var qhost = /^[\w\.\-]+/.exec(queryhost)[0];
+                    tqhost = qhost.replace(/\./g, '\\.');
+                    tqhost = tqhost.replace(/\-/g, '\\-');
+                    var rrtqhost = '[ \\t]' + tqhost + '[ \\t\\n$]';
+                    var rtqhost = new RegExp(rrtqhost);
+                    if (rtqhost.test(chosts)) {
+                        rrtqhost = '[\^n].*' + tqhost + '.*[\n$]';
+                        rtqhost = new RegExp(rrtqhost);
+                        chosts = chosts.replace(rtqhost, `\n${addresss[0]} ${qhost}\n`);
+                    }
+                    else {
+                        chosts += `\n${addresss[0]} ${qhost}\n`;
+                    }
+                    fs.writeFileSync('/etc/hosts', chosts, 'utf-8');
                 }
-                else {
-                    chosts += `\n${addresss[0]} ${qhost}\n`;
-                }
-                fs.writeFileSync('/etc/hosts', chosts, 'utf-8');
 
                 getlocaladdr();
                 if (saddr === '0.0.0.0') {
@@ -173,7 +175,7 @@ getqhost();
 var localaddr = '127.0.0.1';
 function getlocaladdr() {
     request({
-        url: 'http://139.99.8.58/json',  /* http://ip-api.com/json 139.99.8.126 */
+        url: 'http://ip-api.com/json',
         gzip: true,
         timeout: 5000
     }, function (error, response, body) {
